@@ -386,11 +386,6 @@ export default function ComparisonPage({ selectedCompany }) {
       {/* Page Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-            </svg>
-          </div>
           <div>
             <h2 className="text-xl font-bold text-slate-800">Peer Comparison</h2>
             <p className="text-sm text-slate-500">
