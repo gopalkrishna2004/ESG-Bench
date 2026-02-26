@@ -1,4 +1,5 @@
 const EsgCompany = require('../models/EsgCompany');
+const EsgReport = require('../models/EsgReport');
 const {
   METRICS_CONFIG,
   computeDerivedMetrics,
@@ -128,4 +129,41 @@ const getMetricRanking = async (req, res) => {
   }
 };
 
-module.exports = { getCompanyBenchmark, getSectorStats, getHeatmapData, getMetricRanking };
+const getPeerComparison = async (req, res) => {
+  try {
+    // 1. Get all companies from oil_gas_esg
+    const oilGasCompanies = await EsgCompany.find({}, 'company_name bse_code _id');
+    const nameList = oilGasCompanies.map((c) => c.company_name);
+
+    // 2. Find matching entries in esg_reports by company name
+    const reports = await EsgReport.find({ company_name: { $in: nameList } });
+
+    // 3. Parse score strings to numbers
+    const data = reports.map((r) => ({
+      _id: r._id,
+      company_name: r.company_name,
+      sector: r.sector,
+      esg_score:         parseFloat(r.esg_score)         || null,
+      environment_score: parseFloat(r.environment_score) || null,
+      social_score:      parseFloat(r.social_score)      || null,
+      governance_score:  parseFloat(r.governance_score)  || null,
+      latest_report_date: r.latest_report_date,
+      coverage: r.coverage,
+    }));
+
+    // 4. Link back to oil_gas_esg _id for navigation to detailed benchmarks
+    const oilGasMap = Object.fromEntries(
+      oilGasCompanies.map((c) => [c.company_name, c._id])
+    );
+    data.forEach((d) => { d.oil_gas_id = oilGasMap[d.company_name] || null; });
+
+    // 5. Sort alphabetically
+    data.sort((a, b) => a.company_name.localeCompare(b.company_name));
+
+    res.json({ companies: data, total: data.length });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { getCompanyBenchmark, getSectorStats, getHeatmapData, getMetricRanking, getPeerComparison };

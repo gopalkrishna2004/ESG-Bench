@@ -12,3 +12,4 @@ export const getHeatmapData = (sector) =>
   api.get(`/benchmarks/heatmap${sector ? `?sector=${encodeURIComponent(sector)}` : ''}`);
 export const getMetricRanking = (metric, sector) =>
   api.get(`/benchmarks/ranking/${metric}${sector ? `?sector=${encodeURIComponent(sector)}` : ''}`);
+export const getPeerComparison = () => api.get('/benchmarks/peer-comparison');

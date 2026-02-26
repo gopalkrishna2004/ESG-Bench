@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import EnvironmentalBenchmark from './pages/EnvironmentalBenchmark';
 import SocialBenchmark from './pages/SocialBenchmark';
 import GovernanceBenchmark from './pages/GovernanceBenchmark';
+import ComparisonPage from './pages/ComparisonPage';
 
 export default function App() {
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -24,6 +25,7 @@ export default function App() {
               <Route path="/environmental" element={<EnvironmentalBenchmark selectedCompany={selectedCompany} />} />
               <Route path="/social" element={<SocialBenchmark selectedCompany={selectedCompany} />} />
               <Route path="/governance" element={<GovernanceBenchmark selectedCompany={selectedCompany} />} />
+              <Route path="/comparison" element={<ComparisonPage selectedCompany={selectedCompany} />} />
             </Routes>
           </ErrorBoundary>
         </main>
