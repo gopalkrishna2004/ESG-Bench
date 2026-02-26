@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getCompanyBenchmark, getMetricRanking } from '../api';
 import MetricCard from '../components/MetricCard';
 import PercentileBarChart from '../components/charts/PercentileBarChart';
+import DistributionBoxPlot from '../components/charts/DistributionBoxPlot';
 
 const ENV_METRICS = [
   { key: 'scope_1', label: 'Scope 1 Emissions', unit: 'tCO₂e', lowerIsBetter: true },
@@ -80,7 +81,7 @@ export default function EnvironmentalBenchmark({ selectedCompany }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 animate-fade-in-up">
         <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-bold text-sm">E</div>
         <div>
           <h2 className="text-xl font-bold text-slate-800">Environmental Benchmark</h2>
@@ -89,7 +90,7 @@ export default function EnvironmentalBenchmark({ selectedCompany }) {
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
         {ENV_METRICS.map((m) => {
           const ms = sectorStats[m.key] ?? {};
           return (
@@ -112,8 +113,36 @@ export default function EnvironmentalBenchmark({ selectedCompany }) {
         })}
       </div>
 
+      {/* Sector Distribution Box Plots */}
+      <div className="card animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+        <p className="card-title">Sector Distribution</p>
+        <p className="text-xs text-slate-400 -mt-2 mb-4">
+          Box = interquartile range (P25–P75) · Line = median · Dot = company position
+        </p>
+        <div className="space-y-3">
+          {ENV_METRICS.map((m) => {
+            const ss = sectorStats[m.key];
+            if (!ss) return null;
+            return (
+              <DistributionBoxPlot
+                key={m.key}
+                label={m.label}
+                min={ss.min}
+                max={ss.max}
+                p25={ss.p25}
+                p50={ss.p50}
+                p75={ss.p75}
+                companyValue={company[m.key]}
+                lowerIsBetter={m.lowerIsBetter}
+                unit={m.unit}
+              />
+            );
+          })}
+        </div>
+      </div>
+
       {/* Sector ranking chart */}
-      <div className="card">
+      <div className="card animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
           <p className="card-title mb-0">
             Sector Ranking — {ENV_METRICS.find((m) => m.key === activeMetric)?.label}
@@ -146,7 +175,7 @@ export default function EnvironmentalBenchmark({ selectedCompany }) {
       </div>
 
       {/* Gap analysis table */}
-      <div className="card">
+      <div className="card animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
         <p className="card-title">Gap to Sector Leader</p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

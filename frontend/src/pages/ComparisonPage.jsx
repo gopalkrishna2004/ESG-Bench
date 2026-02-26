@@ -161,13 +161,13 @@ function GapToLeaderChart({ companies, selected }) {
   };
 
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={data} layout="vertical" margin={{ top: 5, right: 50, left: 10, bottom: 5 }}>
+    <ResponsiveContainer width="100%" height={320}>
+      <BarChart data={data} layout="vertical" margin={{ top: 20, right: 60, left: 10, bottom: 20 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
         <XAxis type="number" domain={[0, 50]} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} tickFormatter={(v) => `-${v}`} />
         <YAxis type="category" dataKey="metric" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} width={90} />
         <Tooltip content={<CustomTooltip />} />
-        <Bar dataKey="gap" radius={[0, 4, 4, 0]} maxBarSize={22}>
+        <Bar dataKey="gap" radius={[0, 4, 4, 0]} maxBarSize={36}>
           {data.map((entry, idx) => (
             <Cell key={idx} fill={entry.gap === 0 ? '#059669' : entry.gap < 10 ? '#f59e0b' : '#ef4444'} />
           ))}

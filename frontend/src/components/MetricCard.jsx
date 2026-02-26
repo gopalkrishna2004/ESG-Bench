@@ -1,3 +1,5 @@
+import PercentileGaugeRow from './charts/PercentileGaugeRow';
+
 function percentileBadge(pct) {
   if (pct == null) return { text: 'N/A', cls: 'badge-blue' };
   if (pct >= 75) return { text: `Top ${100 - pct}%`, cls: 'badge-green' };
@@ -20,15 +22,21 @@ function formatValue(value, unit) {
 export default function MetricCard({ label, value, unit, percentile, avgValue, leaderValue, lowerIsBetter }) {
   const badge = percentileBadge(percentile);
 
-  const pctBar = percentile != null ? Math.max(2, percentile) : 0;
-  const barColor =
-    percentile >= 75 ? 'bg-emerald-500' : percentile >= 50 ? 'bg-blue-500' : percentile >= 25 ? 'bg-amber-500' : 'bg-red-500';
+  const trendUp = percentile != null && percentile >= 50;
+  const trendColor = trendUp ? 'text-emerald-500' : 'text-red-500';
 
   return (
     <div className="card hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between mb-1">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide leading-tight">{label}</p>
-        <span className={badge.cls}>{badge.text}</span>
+        <div className="flex items-center gap-1">
+          {percentile != null && (
+            <span className={`text-xs ${trendColor}`}>
+              {trendUp ? '▲' : '▼'}
+            </span>
+          )}
+          <span className={badge.cls}>{badge.text}</span>
+        </div>
       </div>
 
       <p className="text-2xl font-bold text-slate-800 mt-1">
@@ -36,15 +44,13 @@ export default function MetricCard({ label, value, unit, percentile, avgValue, l
         {value != null && <span className="text-sm font-normal text-slate-400 ml-1">{unit}</span>}
       </p>
 
-      {/* Percentile bar */}
+      {/* Percentile zone gauge */}
       <div className="mt-3 mb-2">
         <div className="flex justify-between text-xs text-slate-400 mb-1">
           <span>Sector rank</span>
           <span>{percentile != null ? `${percentile}th percentile` : 'N/A'}</span>
         </div>
-        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pctBar}%` }} />
-        </div>
+        <PercentileGaugeRow percentile={percentile} />
       </div>
 
       {/* Comparison row */}

@@ -3,7 +3,12 @@ import { getCompanyBenchmark, getHeatmapData } from '../api';
 import ESGRadarChart from '../components/charts/ESGRadarChart';
 import GapWaterfallChart from '../components/charts/GapWaterfallChart';
 import PeerHeatmap from '../components/charts/PeerHeatmap';
+import PillarDonutChart from '../components/charts/PillarDonutChart';
+import MetricTreemap from '../components/charts/MetricTreemap';
 import InsightCard from '../components/InsightCard';
+import {
+  BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell,
+} from 'recharts';
 
 const METRICS_CONFIG = {
   scope_1: { label: 'Scope 1 Emissions' },
@@ -22,31 +27,7 @@ const METRICS_CONFIG = {
   net_zero_target_year: { label: 'Net Zero Target Year' },
 };
 
-function PillarScoreCard({ label, score, color, icon }) {
-  const barColor = color;
-  return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center text-white text-sm`}>
-            {icon}
-          </div>
-          <p className="text-sm font-semibold text-slate-700">{label}</p>
-        </div>
-        <span className={`text-2xl font-bold ${score >= 60 ? 'text-emerald-600' : score >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
-          {score != null ? score : '—'}
-        </span>
-      </div>
-      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-          style={{ width: `${score ?? 0}%` }}
-        />
-      </div>
-      <p className="text-xs text-slate-400 mt-1.5 text-right">{score != null ? `${score}/100` : 'N/A'}</p>
-    </div>
-  );
-}
+const PILLAR_COLORS = { Environmental: '#059669', Social: '#3b82f6', Governance: '#8b5cf6' };
 
 export default function Dashboard({ selectedCompany }) {
   const [benchmark, setBenchmark] = useState(null);
@@ -112,51 +93,95 @@ export default function Dashboard({ selectedCompany }) {
 
   if (!benchmark) return null;
 
-  const { pillarScores, radarData, percentiles, strengths, weaknesses, opportunities, peerCount } = benchmark;
+  const { pillarScores, radarData, percentiles, normalizedScores, strengths, weaknesses, opportunities, peerCount } = benchmark;
+
+  // Pillar breakdown bar data
+  const pillarBarData = [
+    { name: 'E', value: pillarScores.environmental ?? 0 },
+    { name: 'S', value: pillarScores.social ?? 0 },
+    { name: 'G', value: pillarScores.governance ?? 0 },
+  ];
 
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-slate-800">{selectedCompany.company_name}</h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Benchmarked against {peerCount} peers in {selectedCompany.sector}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-2">
-          <span className="text-xs text-slate-500">Overall ESG Score</span>
-          <span className={`text-2xl font-bold ${pillarScores.overall >= 60 ? 'text-emerald-600' : pillarScores.overall >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
-            {pillarScores.overall ?? '—'}
-          </span>
-          <span className="text-xs text-slate-400">/100</span>
+      <div className="animate-fade-in-up bg-gradient-to-r from-blue-50 to-slate-50 -mx-6 -mt-6 px-6 pt-6 pb-5 rounded-b-2xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">{selectedCompany.company_name}</h2>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Benchmarked against {peerCount} peers in {selectedCompany.sector}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Compact pillar breakdown */}
+            <div className="hidden md:block w-36">
+              <ResponsiveContainer width="100%" height={28}>
+                <BarChart data={pillarBarData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis type="number" domain={[0, 100]} hide />
+                  <Bar dataKey="value" radius={[3, 3, 3, 3]} maxBarSize={8}>
+                    {pillarBarData.map((d) => (
+                      <Cell key={d.name} fill={PILLAR_COLORS[d.name === 'E' ? 'Environmental' : d.name === 'S' ? 'Social' : 'Governance']} />
+                    ))}
+                  </Bar>
+                  <Tooltip
+                    content={({ payload }) => {
+                      if (!payload?.[0]) return null;
+                      const d = payload[0].payload;
+                      const labels = { E: 'Environmental', S: 'Social', G: 'Governance' };
+                      return (
+                        <div className="bg-white shadow-lg rounded px-2 py-1 border border-slate-100 text-xs">
+                          {labels[d.name]}: <strong>{d.value}/100</strong>
+                        </div>
+                      );
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-2">
+              <span className="text-xs text-slate-500">Overall ESG Score</span>
+              <span className={`text-2xl font-bold ${pillarScores.overall >= 60 ? 'text-emerald-600' : pillarScores.overall >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                {pillarScores.overall ?? '—'}
+              </span>
+              <span className="text-xs text-slate-400">/100</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Pillar scores */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <PillarScoreCard
-          label="Environmental"
-          score={pillarScores.environmental}
-          color="bg-emerald-500"
-          icon="E"
-        />
-        <PillarScoreCard
-          label="Social"
-          score={pillarScores.social}
-          color="bg-blue-500"
-          icon="S"
-        />
-        <PillarScoreCard
-          label="Governance"
-          score={pillarScores.governance}
-          color="bg-purple-500"
-          icon="G"
-        />
+      {/* Pillar scores — ring gauges */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+        {[
+          { label: 'Environmental', score: pillarScores.environmental, color: 'bg-emerald-500', icon: 'E' },
+          { label: 'Social', score: pillarScores.social, color: 'bg-blue-500', icon: 'S' },
+          { label: 'Governance', score: pillarScores.governance, color: 'bg-purple-500', icon: 'G' },
+        ].map((p) => (
+          <div key={p.label} className="card flex flex-col items-center py-6">
+            <div className="flex items-center gap-2 mb-3">
+              <div className={`w-6 h-6 rounded-md ${p.color} flex items-center justify-center text-white text-xs font-bold`}>
+                {p.icon}
+              </div>
+              <p className="text-sm font-semibold text-slate-700">{p.label}</p>
+            </div>
+            <div className="relative">
+              <PillarDonutChart score={p.score} label="/ 100" size={130} strokeWidth={10} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Performance Overview Treemap */}
+      <div className="card animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+        <p className="card-title">Performance Overview</p>
+        <p className="text-xs text-slate-400 -mt-2 mb-3">
+          Rectangle size reflects normalized score (0–100). Larger green blocks = stronger performance.
+        </p>
+        <MetricTreemap normalizedScores={normalizedScores} metricsConfig={METRICS_CONFIG} />
       </div>
 
       {/* Radar + Gap */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
         <div className="card">
           <p className="card-title">ESG Multi-Dimensional Radar</p>
           <p className="text-xs text-slate-400 -mt-2 mb-3">Normalized 0–100 scores across 8 key dimensions</p>
@@ -173,10 +198,12 @@ export default function Dashboard({ selectedCompany }) {
       </div>
 
       {/* Strengths & Weaknesses */}
-      <InsightCard strengths={strengths} weaknesses={weaknesses} opportunities={opportunities} />
+      <div className="animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
+        <InsightCard strengths={strengths} weaknesses={weaknesses} opportunities={opportunities} />
+      </div>
 
       {/* Peer Heatmap */}
-      <div className="card">
+      <div className="card animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
         <p className="card-title">Peer Comparison Heatmap</p>
         <p className="text-xs text-slate-400 -mt-2 mb-4">
           All companies in sector · Cells show normalized score (0–100) · ★ = selected company

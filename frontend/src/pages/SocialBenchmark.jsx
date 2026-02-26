@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { getCompanyBenchmark, getMetricRanking } from '../api';
 import MetricCard from '../components/MetricCard';
 import PercentileBarChart from '../components/charts/PercentileBarChart';
+import DistributionBoxPlot from '../components/charts/DistributionBoxPlot';
+import CompositionDonut from '../components/charts/CompositionDonut';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 
 const SOCIAL_METRICS = [
@@ -82,19 +84,31 @@ export default function SocialBenchmark({ selectedCompany }) {
     return Number(v).toFixed(2);
   };
 
-  // Build pay equity bar chart data — only include rows with at least one valid value
-  const payEquityData = [];
-  if (company.median_remuneration_female != null || company.median_remuneration_male != null) {
-    payEquityData.push({
-      name: (selectedCompany.company_name || '').split(' ').slice(0, 2).join(' '),
-      Female: company.median_remuneration_female ?? 0,
-      Male: company.median_remuneration_male ?? 0,
-    });
+  // Gender diversity donut data
+  const femaleCount = company.female_employees;
+  const totalCount = company.employees;
+  const diversityDonutData = (femaleCount != null && totalCount != null && totalCount > 0)
+    ? [
+        { name: 'Female', value: femaleCount },
+        { name: 'Male', value: totalCount - femaleCount },
+      ]
+    : null;
+
+  // Pay equity ratio comparison bar data
+  const payRatioData = [];
+  if (company.pay_equity_ratio != null) {
+    payRatioData.push({ name: 'Company', value: company.pay_equity_ratio });
+  }
+  if (sectorStats.pay_equity_ratio?.avg != null) {
+    payRatioData.push({ name: 'Sector Avg', value: sectorStats.pay_equity_ratio.avg });
+  }
+  if (sectorStats.pay_equity_ratio?.best != null) {
+    payRatioData.push({ name: 'Sector Best', value: sectorStats.pay_equity_ratio.best });
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 animate-fade-in-up">
         <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white font-bold text-sm">S</div>
         <div>
           <h2 className="text-xl font-bold text-slate-800">Social Benchmark</h2>
@@ -103,7 +117,7 @@ export default function SocialBenchmark({ selectedCompany }) {
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
         {SOCIAL_METRICS.map((m) => {
           const ms = sectorStats[m.key] ?? {};
           return (
@@ -126,8 +140,95 @@ export default function SocialBenchmark({ selectedCompany }) {
         })}
       </div>
 
+      {/* Sector Distribution Box Plots */}
+      <div className="card animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+        <p className="card-title">Sector Distribution</p>
+        <p className="text-xs text-slate-400 -mt-2 mb-4">
+          Box = interquartile range (P25–P75) · Line = median · Dot = company position
+        </p>
+        <div className="space-y-3">
+          {SOCIAL_METRICS.map((m) => {
+            const ss = sectorStats[m.key];
+            if (!ss) return null;
+            return (
+              <DistributionBoxPlot
+                key={m.key}
+                label={m.label}
+                min={ss.min}
+                max={ss.max}
+                p25={ss.p25}
+                p50={ss.p50}
+                p75={ss.p75}
+                companyValue={company[m.key]}
+                lowerIsBetter={m.lowerIsBetter}
+                unit={m.unit}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Diversity Donut + Pay Equity side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+        {/* Gender Diversity Donut */}
+        {diversityDonutData && (
+          <div className="card">
+            <p className="card-title">Workforce Gender Composition</p>
+            <p className="text-xs text-slate-400 -mt-2 mb-3">
+              Female vs male employees in the organization
+            </p>
+            <CompositionDonut
+              data={diversityDonutData}
+              colors={['#8b5cf6', '#3b82f6']}
+              centerLabel={`${(company.gender_diversity_pct ?? 0).toFixed(1)}%`}
+              centerSubLabel="Female"
+              height={200}
+            />
+          </div>
+        )}
+
+        {/* Pay Equity Ratio Comparison */}
+        {payRatioData.length > 0 && (
+          <div className="card">
+            <p className="card-title">Pay Equity Ratio — Sector Context</p>
+            <p className="text-xs text-slate-400 -mt-2 mb-3">
+              Ratio of female to male median remuneration (1.0 = parity)
+            </p>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={payRatioData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} />
+                <YAxis
+                  domain={[0, (max) => Math.max(max * 1.1, 1.2)]}
+                  tick={{ fontSize: 10, fill: '#94a3b8' }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <ReferenceLine y={1} stroke="#059669" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: 'Parity', position: 'right', fontSize: 10, fill: '#059669' }} />
+                <Tooltip formatter={(v) => [Number(v).toFixed(3), 'Ratio']} />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={45} fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+            {company.pay_equity_ratio != null && (
+              <div
+                className={`mt-2 flex items-center gap-2 text-sm p-3 rounded-lg ${
+                  company.pay_equity_ratio >= 0.9 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                }`}
+              >
+                <span className="font-semibold">Ratio: {Number(company.pay_equity_ratio).toFixed(2)}</span>
+                <span className="text-xs">
+                  ({company.pay_equity_ratio >= 0.9
+                    ? 'Good — within 10% of parity'
+                    : 'Gap identified — female compensation lags'})
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Sector ranking chart */}
-      <div className="card">
+      <div className="card animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
         <div className="flex items-center justify-between mb-1">
           <p className="card-title mb-0">
             Sector Ranking — {SOCIAL_METRICS.find((m) => m.key === activeMetric)?.label}
@@ -155,57 +256,8 @@ export default function SocialBenchmark({ selectedCompany }) {
         />
       </div>
 
-      {/* Pay Equity Grouped Bar */}
-      {payEquityData.length > 0 && (
-        <div className="card">
-          <p className="card-title">Pay Equity: Female vs Male Median Remuneration</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={payEquityData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} />
-              <YAxis
-                tick={{ fontSize: 10, fill: '#94a3b8' }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v) => {
-                  if (v == null || isNaN(v)) return '0';
-                  if (Math.abs(v) >= 1e6) return `₹${(v / 1e6).toFixed(1)}M`;
-                  if (Math.abs(v) >= 1e3) return `₹${(v / 1e3).toFixed(0)}K`;
-                  return `₹${v}`;
-                }}
-              />
-              <Tooltip
-                formatter={(v) => {
-                  if (v == null || isNaN(v)) return '—';
-                  if (Math.abs(v) >= 1e6) return `₹${(v / 1e6).toFixed(2)}M`;
-                  if (Math.abs(v) >= 1e3) return `₹${(v / 1e3).toFixed(1)}K`;
-                  return `₹${v}`;
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Female" fill="#8b5cf6" radius={[3, 3, 0, 0]} maxBarSize={50} />
-              <Bar dataKey="Male" fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={50} />
-            </BarChart>
-          </ResponsiveContainer>
-          {company.pay_equity_ratio != null && (
-            <div
-              className={`mt-3 flex items-center gap-2 text-sm p-3 rounded-lg ${
-                company.pay_equity_ratio >= 0.9 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-              }`}
-            >
-              <span className="font-semibold">Pay equity ratio: {Number(company.pay_equity_ratio).toFixed(2)}</span>
-              <span className="text-xs">
-                ({company.pay_equity_ratio >= 0.9
-                  ? 'Good — within 10% of parity'
-                  : 'Gap identified — female compensation lags'})
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Gap table */}
-      <div className="card">
+      <div className="card animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
         <p className="card-title">Gap to Sector Leader</p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
